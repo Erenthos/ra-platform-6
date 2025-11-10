@@ -102,14 +102,17 @@ export async function POST(req: Request) {
       invitedSuppliers.map(async (email: string) => {
         const supplier = await prisma.user.findUnique({ where: { email } });
 
-        // ✅ Use spread to include supplierId only if supplier exists
-        return prisma.invite.create({
-          data: {
-            auctionId: auction.id,
-            email,
-            ...(supplier && { supplierId: supplier.id }),
-          },
-        });
+        // ✅ Safely construct the invite data
+        const inviteData: any = {
+          auctionId: auction.id,
+          email,
+        };
+
+        if (supplier && supplier.id) {
+          inviteData.supplierId = supplier.id;
+        }
+
+        return prisma.invite.create({ data: inviteData });
       })
     );
 
