@@ -1,1 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🌌 GLOBAL AESTHETIC — Aurora Glassmorphism */
+html, body {
+  @apply min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white antialiased;
+}
+
+/* 🔮 GLASS CONTAINERS */
+.glass {
+  @apply bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg;
+}
+
+/* ✨ TEXT STYLES */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold text-white;
+}
+
+p {
+  @apply text-gray-300 leading-relaxed;
+}
+
+/* 🔘 BUTTONS */
+.btn-primary {
+  @apply px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-all duration-300 font-semibold text-white shadow-md;
+}
+
+.btn-secondary {
+  @apply px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 transition-all duration-300 font-semibold text-white shadow-md;
+}
+
+/* 🧱 CARD COMPONENTS */
+.card {
+  @apply glass p-6 m-4 w-full max-w-md;
+}
+
+.card-title {
+  @apply text-2xl font-bold mb-3;
+}
+
+.card-subtitle {
+  @apply text-gray-400 text-sm mb-4;
+}
+
+/* 🧭 NAVBAR */
+.navbar {
+  @apply glass flex items-center justify-between px-6 py-4 sticky top-0 z-50;
+}
+
+/* 🦶 FOOTER */
+.footer {
+  @apply glass text-center text-sm py-4 mt-10;
+}
+
+/* 🌀 INPUTS & FORMS */
+input, textarea, select {
+  @apply bg-white/5 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+label {
+  @apply text-gray-300 text-sm mb-2;
+}
+
+/* 💡 LINKS */
+a {
+  @apply text-blue-400 hover:text-blue-300 transition-colors duration-200;
+}
 
