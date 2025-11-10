@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { Server } from "socket.io";
+import { Server, Socket } from "socket.io";
 import { prisma } from "@/lib/prisma";
 
-let io: any;
+let io: Server | null = null;
 
 // -------------------------------------------------------
 // Socket.IO server route
@@ -17,20 +17,16 @@ export async function GET(req: Request) {
       path: "/api/socket",
     });
 
-    // Store instance globally to prevent hot reload duplicates
     (global as any).io = io;
 
-    // Handle socket connection
-    io.on("connection", (socket) => {
+    io.on("connection", (socket: Socket) => {
       console.log("🟢 Socket connected:", socket.id);
 
-      // 🧩 When supplier joins auction room
       socket.on("join_auction", (auctionId: string) => {
         socket.join(auctionId);
         console.log(`Supplier joined auction room: ${auctionId}`);
       });
 
-      // 🧾 When a new bid is placed
       socket.on("new_bid", async ({ auctionId }: { auctionId: string }) => {
         try {
           const bids = await prisma.bid.findMany({
@@ -38,15 +34,12 @@ export async function GET(req: Request) {
             orderBy: { amount: "asc" },
             include: { supplier: true },
           });
-
-          // Broadcast bid list to all clients in the same auction room
-          io.to(auctionId).emit("update_bids", bids);
+          io?.to(auctionId).emit("update_bids", bids);
         } catch (err) {
           console.error("Error broadcasting new bids:", err);
         }
       });
 
-      // ⏰ When buyer extends auction duration
       socket.on(
         "extend_auction",
         async ({ auctionId, extraMinutes }: { auctionId: string; extraMinutes: number }) => {
@@ -60,7 +53,7 @@ export async function GET(req: Request) {
               },
             });
 
-            io.to(auctionId).emit("auction_extended", auction);
+            io?.to(auctionId).emit("auction_extended", auction);
             console.log(`Auction ${auctionId} extended by ${extraMinutes} minutes`);
           } catch (err) {
             console.error("Error extending auction:", err);
@@ -68,7 +61,6 @@ export async function GET(req: Request) {
         }
       );
 
-      // 🔴 Handle disconnect
       socket.on("disconnect", () => {
         console.log("🔴 Socket disconnected:", socket.id);
       });
