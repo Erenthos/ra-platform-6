@@ -1,103 +1,76 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import Link from "next/link";
+
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
-  const router = useRouter();
-
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-purple-900/60 via-blue-900/60 to-gray-900/60 backdrop-blur-2xl">
-      {/* Animated background aurora lights */}
-      <motion.div
-        className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-30 blur-3xl"
-        animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 25, ease: "linear" }}
-      />
-      <motion.div
-        className="absolute -bottom-60 right-0 w-[500px] h-[500px] rounded-full bg-gradient-to-r from-blue-600 via-purple-700 to-pink-600 opacity-25 blur-3xl"
-        animate={{ rotate: -360 }}
-        transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
-      />
-
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white">
       {/* Hero Section */}
-      <motion.div
-        className="z-10 text-center px-6 sm:px-12 max-w-3xl"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-      >
-        <h1 className="text-5xl sm:text-6xl font-extrabold text-white mb-6 drop-shadow-lg">
-          Experience the Future of Bidding With <span className="text-indigo-400">Avaada</span>
-        </h1>
-        <p className="text-gray-300 text-lg sm:text-xl mb-10">
-          Join the next-generation Reverse Auction Platform designed for
-          seamless, transparent, and competitive online bidding between buyers
-          and suppliers — powered by modern technology and stunning design.
-        </p>
+      <section className="w-full flex flex-col items-center justify-center py-20 px-6 text-center">
+        <div className="glass max-w-4xl w-full p-10 md:p-16 rounded-3xl shadow-2xl backdrop-blur-2xl border border-white/20">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+            Experience the Future of Bidding With{" "}
+            <span className="text-blue-400">Avaada</span>
+          </h1>
 
-        <div className="flex flex-col sm:flex-row justify-center gap-6">
-          <Button
-            onClick={() => router.push("/signup")}
-            className="bg-indigo-500 hover:bg-indigo-600 px-8 py-3 rounded-2xl text-lg"
-          >
-            Start as Buyer
-          </Button>
-          <Button
-            onClick={() => router.push("/signup")}
-            className="bg-purple-600 hover:bg-purple-700 px-8 py-3 rounded-2xl text-lg"
-          >
-            Start as Supplier
-          </Button>
+          <p className="text-gray-300 mb-10 text-lg md:text-xl leading-relaxed">
+            Join the next-generation Reverse Auction Platform designed for seamless,
+            transparent, and competitive online bidding between buyers and suppliers —
+            powered by modern technology and stunning glassmorphic design.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-wrap justify-center gap-6 mb-12">
+            <Link
+              href="/signup/buyer"
+              className="btn-primary text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-blue-500/40"
+            >
+              Start as Buyer
+            </Link>
+
+            <Link
+              href="/signup/supplier"
+              className="btn-secondary text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-green-500/40"
+            >
+              Start as Supplier
+            </Link>
+          </div>
+
+          {/* Feature Highlights */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8 text-left text-gray-300">
+            <div className="glass p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
+              <h3 className="text-lg font-semibold mb-2 text-blue-400">🔒 Secure & Transparent</h3>
+              <p className="text-sm">
+                All bids are confidential — suppliers only see their rank. Buyers get
+                complete transparency and control.
+              </p>
+            </div>
+
+            <div className="glass p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
+              <h3 className="text-lg font-semibold mb-2 text-green-400">⚡ Real-Time Bidding</h3>
+              <p className="text-sm">
+                Instant rank updates and automatic bid adjustments powered by Socket.IO
+                ensure seamless live bidding.
+              </p>
+            </div>
+
+            <div className="glass p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
+              <h3 className="text-lg font-semibold mb-2 text-yellow-400">📈 Powerful Insights</h3>
+              <p className="text-sm">
+                Download real-time auction summaries, analyze trends, and make informed
+                procurement decisions.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer Text Inside Hero */}
+          <p className="text-xs text-gray-500 mt-12">
+            © {new Date().getFullYear()} Avaada Reverse Auction Platform — Empowering smarter procurement decisions.
+          </p>
         </div>
-      </motion.div>
-
-      {/* Info Section / Feature Cards */}
-      <motion.div
-        className="z-10 grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 px-6 max-w-6xl"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
-      >
-        {[
-          {
-            title: "🔒 Secure & Transparent",
-            desc: "All bids are confidential — no supplier can see others’ prices. Buyers see only live rankings.",
-          },
-          {
-            title: "⚡ Real-Time Bidding",
-            desc: "Experience instant rank updates and dynamic bid changes using our Socket.IO powered engine.",
-          },
-          {
-            title: "📈 Powerful Insights",
-            desc: "Download real-time auction summaries and gain visibility into performance instantly.",
-          },
-        ].map((card, i) => (
-          <motion.div
-            key={i}
-            className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 text-center text-gray-200 hover:bg-white/20 transition-all shadow-lg"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 120 }}
-          >
-            <h3 className="text-xl font-semibold text-white mb-3">{card.title}</h3>
-            <p className="text-sm text-gray-300 leading-relaxed">{card.desc}</p>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Bottom CTA Section */}
-      <motion.div
-        className="z-10 mt-20 mb-10 text-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 1 }}
-      >
-        <p className="text-gray-300 text-sm">
-          © {new Date().getFullYear()} Avaada Reverse Auction Platform — Empowering smarter procurement decisions.
-        </p>
-      </motion.div>
+      </section>
     </div>
   );
 }
-
