@@ -1,15 +1,15 @@
-// src/app/layout.tsx
 import "./globals.css";
-import { SessionProvider } from "next-auth/react";
-import { Toaster } from "sonner";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SessionProviderWrapper from "@/components/providers/SessionProviderWrapper";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Reverse Auction Platform",
-  description:
-    "A modern English Reverse Auction Platform for Buyers and Suppliers — built with Next.js, Prisma, and Neon PostgreSQL.",
+  description: "Experience the Future of Bidding with Avaada",
 };
 
 export default function RootLayout({
@@ -19,23 +19,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 text-white min-h-screen overflow-x-hidden">
-        {/* NextAuth Session Context */}
-        <SessionProvider>
-          {/* Global Toast Notification */}
-          <Toaster richColors position="top-right" />
-
-          {/* Persistent Navbar */}
+      <body
+        className={`${inter.className} min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white`}
+      >
+        {/* ✅ Client-side SessionProvider for NextAuth */}
+        <SessionProviderWrapper>
           <Navbar />
-
-          {/* Main Page Area */}
-          <main className="pt-20 pb-10 flex-1 flex items-center justify-center px-4 sm:px-8">
+          <main className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-10">
             {children}
           </main>
-
-          {/* Global Footer */}
           <Footer />
-        </SessionProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );
