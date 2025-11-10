@@ -3,10 +3,13 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import type { Metadata } from "next";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Reverse Auction Platform",
-  description: "Traditional English Reverse Auction System — Buyer vs Supplier",
+  description:
+    "A modern English Reverse Auction Platform for Buyers and Suppliers — built with Next.js, Prisma, and Neon PostgreSQL.",
 };
 
 export default function RootLayout({
@@ -16,26 +19,24 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 text-white min-h-screen">
+      <body className="bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 text-white min-h-screen overflow-x-hidden">
+        {/* NextAuth Session Context */}
         <SessionProvider>
-          {/* Global Notification Toasts */}
+          {/* Global Toast Notification */}
           <Toaster richColors position="top-right" />
 
-          {/* Main App Container */}
-          <div className="flex flex-col min-h-screen">
-            {/* Optional: Navbar could go here */}
-            <main className="flex-1 flex items-center justify-center px-4 sm:px-8 py-10">
-              {children}
-            </main>
+          {/* Persistent Navbar */}
+          <Navbar />
 
-            {/* Optional: Footer */}
-            <footer className="text-center text-gray-400 text-sm pb-4">
-              © {new Date().getFullYear()} Reverse Auction Platform — All Rights Reserved
-            </footer>
-          </div>
+          {/* Main Page Area */}
+          <main className="pt-20 pb-10 flex-1 flex items-center justify-center px-4 sm:px-8">
+            {children}
+          </main>
+
+          {/* Global Footer */}
+          <Footer />
         </SessionProvider>
       </body>
     </html>
   );
 }
-
