@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +9,9 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 
 export default function CreateAuctionPage() {
+  const { data: session } = useSession(); // ✅ Access logged-in user
+  const buyerId = session?.user?.id; // ✅ Securely use authenticated buyer ID
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState(10);
@@ -17,11 +21,8 @@ export default function CreateAuctionPage() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // TEMP Buyer ID (replace later with session.user.id)
-  const buyerId = "buyer-temp-uuid";
-
   const addEmail = () => {
-    if (emailInput.trim() && !emails.includes(emailInput)) {
+    if (emailInput.trim() && !emails.includes(emailInput.trim())) {
       setEmails([...emails, emailInput.trim()]);
       setEmailInput("");
     }
@@ -33,40 +34,50 @@ export default function CreateAuctionPage() {
 
   const handleSubmit = async () => {
     if (!title || emails.length === 0) {
-      toast.error("Please fill in all required fields");
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (!buyerId) {
+      toast.error("User session not found. Please sign in again.");
       return;
     }
 
     setLoading(true);
 
-    const res = await fetch("/api/auction", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        description,
-        buyerId,
-        durationMinutes: Number(duration),
-        minDecrementValue: Number(minDecrement),
-        invitedSuppliers: emails,
-      }),
-    });
+    try {
+      const res = await fetch("/api/auction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          buyerId,
+          durationMinutes: Number(duration),
+          minDecrementValue: Number(minDecrement),
+          invitedSuppliers: emails,
+        }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (res.ok) {
-      toast.success("Auction created successfully!");
-      setModalOpen(true);
+      if (res.ok) {
+        toast.success("Auction created successfully!");
+        setModalOpen(true);
 
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setDuration(10);
-      setMinDecrement(100);
-      setEmails([]);
-    } else {
-      toast.error(data.error || "Failed to create auction");
+        // Reset form after success
+        setTitle("");
+        setDescription("");
+        setDuration(10);
+        setMinDecrement(100);
+        setEmails([]);
+      } else {
+        toast.error(data.error || "Failed to create auction.");
+      }
+    } catch (error) {
+      setLoading(false);
+      toast.error("An unexpected error occurred.");
     }
   };
 
@@ -156,7 +167,7 @@ export default function CreateAuctionPage() {
         </div>
       </motion.div>
 
-      {/* 🎉 Success Modal */}
+      {/* ✅ Success Modal */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -167,8 +178,9 @@ export default function CreateAuctionPage() {
           window.location.href = "/buyer/dashboard";
         }}
       >
-        ✅ Your auction has been created successfully and is now live.  
-        You can track bids and download summaries from your Buyer Dashboard.
+        ✅ Your auction has been created successfully and is now live.
+        You can track bids, extend duration, and download summaries
+        from your Buyer Dashboard.
       </Modal>
     </div>
   );
