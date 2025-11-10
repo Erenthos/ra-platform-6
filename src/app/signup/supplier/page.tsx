@@ -25,7 +25,7 @@ export default function SupplierSignupPage() {
       if (!res.ok) throw new Error(data.error || "Signup failed");
 
       alert("✅ Supplier signup successful!");
-      window.location.href = "/(auth)/signin";
+      window.location.href = "/signin";
     } catch (err: any) {
       alert(err.message);
     } finally {
