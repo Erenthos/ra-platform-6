@@ -1,63 +1,87 @@
 // src/lib/socket.ts
 import { Server } from "socket.io";
-import { NextApiResponseServerIO } from "@/types/next";
-import type { NextApiRequest } from "next";
 import { prisma } from "@/lib/prisma";
 
-// Singleton instance to prevent reinitialization in dev
 let io: Server | null = null;
 
-export default function initializeSocket(req: NextApiRequest, res: NextApiResponseServerIO) {
+/**
+ * Initializes or retrieves the existing Socket.IO server instance.
+ * This ensures we only create one server during hot reloads or multiple API calls.
+ */
+export function getIO(): Server {
   if (!io) {
-    io = new Server(res.socket.server, {
+    console.log("🧠 Initializing Socket.IO server...");
+
+    io = new Server(3001, {
+      cors: {
+        origin: "*",
+      },
       path: "/api/socket",
-      cors: { origin: "*", methods: ["GET", "POST"] },
     });
 
-    console.log("🔌 Socket.IO initialized.");
-
     io.on("connection", (socket) => {
-      console.log(`⚡ Client connected: ${socket.id}`);
+      console.log("🟢 Socket connected:", socket.id);
 
       // Supplier joins auction room
       socket.on("join_auction", (auctionId: string) => {
         socket.join(auctionId);
-        console.log(`📦 Supplier joined auction room: ${auctionId}`);
+        console.log(`Supplier joined auction room: ${auctionId}`);
       });
 
-      // Handle new bid broadcast
-      socket.on("new_bid", async (data) => {
-        const { auctionId } = data;
+      // Supplier submits new bid
+      socket.on("new_bid", async ({ auctionId, supplierId, amount }: { auctionId: string; supplierId: string; amount: number }) => {
+        try {
+          // Save bid to DB
+          await prisma.bid.create({
+            data: {
+              auctionId,
+              supplierId,
+              amount,
+            },
+          });
 
-        // Recalculate ranks & broadcast to all
-        const bids = await prisma.bid.findMany({
-          where: { auctionId },
-          orderBy: { amount: "asc" },
-          include: { supplier: true },
-        });
+          // Get updated bids sorted by lowest amount
+          const bids = await prisma.bid.findMany({
+            where: { auctionId },
+            orderBy: { amount: "asc" },
+            include: { supplier: true },
+          });
 
-        io?.to(auctionId).emit("update_bids", bids);
-        console.log(`📣 Bids updated for auction ${auctionId}`);
+          // Broadcast new ranking to all buyers & suppliers in that auction
+          io?.to(auctionId).emit("update_bids", bids);
+          console.log(`📡 Updated bids for auction ${auctionId}`);
+        } catch (err) {
+          console.error("❌ Error handling new bid:", err);
+        }
       });
 
-      // Extend auction time
-      socket.on("extend_auction", async (data) => {
-        const { auctionId, extraMinutes } = data;
-        const auction = await prisma.auction.update({
-          where: { id: auctionId },
-          data: { endTime: new Date(Date.now() + extraMinutes * 60000) },
-        });
+      // Buyer extends auction duration
+      socket.on(
+        "extend_auction",
+        async ({ auctionId, extraMinutes }: { auctionId: string; extraMinutes: number }) => {
+          try {
+            const updatedAuction = await prisma.auction.update({
+              where: { id: auctionId },
+              data: {
+                endTime: {
+                  set: new Date(Date.now() + extraMinutes * 60 * 1000),
+                },
+              },
+            });
 
-        io?.to(auctionId).emit("auction_extended", auction);
-        console.log(`⏰ Auction ${auctionId} extended by ${extraMinutes} min`);
-      });
+            io?.to(auctionId).emit("auction_extended", updatedAuction);
+            console.log(`⏰ Auction ${auctionId} extended by ${extraMinutes} minutes`);
+          } catch (err) {
+            console.error("❌ Error extending auction:", err);
+          }
+        }
+      );
 
       socket.on("disconnect", () => {
-        console.log(`❌ Client disconnected: ${socket.id}`);
+        console.log("🔴 Socket disconnected:", socket.id);
       });
     });
   }
 
-  res.end();
+  return io;
 }
-
