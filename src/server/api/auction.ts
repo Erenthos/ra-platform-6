@@ -12,7 +12,7 @@ const auctionSchema = z.object({
   invitedSuppliers: z.array(z.string().email("Invalid supplier email")),
 });
 
-// 🧱 GET — fetch all auctions for a specific buyer
+// 🧱 GET — Fetch all auctions for a specific buyer
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
   }
 }
 
-// 🧱 POST — create a new auction and invited suppliers
+// 🧱 POST — Create a new auction and invite suppliers
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       invitedSuppliers,
     } = result.data;
 
-    // Prevent duplicate auction titles for same buyer
+    // 🔎 Prevent duplicate auction titles for same buyer
     const existing = await prisma.auction.findFirst({
       where: { title, buyerId },
     });
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Calculate start and end times
+    // ⏰ Calculate start and end times
     const startTime = new Date();
     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
@@ -94,22 +94,30 @@ export async function POST(req: Request) {
       },
     });
 
-    // ✅ Create supplier invites after auction creation
+    // ✅ Create supplier invites safely after auction creation
     const invites = await Promise.all(
       invitedSuppliers.map(async (email: string) => {
         const supplier = await prisma.user.findUnique({ where: { email } });
 
-        return prisma.invite.create({
-          data: {
-            auctionId: auction.id,
-            email,
-            ...(supplier && { supplierId: supplier.id }),
-          },
-        });
+        // Build invite data safely
+        const inviteData: {
+          auctionId: string;
+          email: string;
+          supplierId?: string;
+        } = {
+          auctionId: auction.id,
+          email,
+        };
+
+        if (supplier && supplier.id) {
+          inviteData.supplierId = supplier.id;
+        }
+
+        return prisma.invite.create({ data: inviteData });
       })
     );
 
-    // ✅ Return response
+    // ✅ Return structured success response
     return NextResponse.json({
       success: true,
       message: "Auction created successfully",
