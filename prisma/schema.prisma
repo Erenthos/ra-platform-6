@@ -1,1 +1,54 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(SUPPLIER)
+  createdAt   DateTime @default(now())
+  auctions    Auction[] @relation("BuyerAuctions")
+  bids        Bid[]
+}
+
+model Auction {
+  id                String   @id @default(cuid())
+  title             String
+  description       String
+  buyer             User     @relation("BuyerAuctions", fields: [buyerId], references: [id])
+  buyerId           String
+  startTime         DateTime
+  endTime           DateTime
+  minDecrementValue Float
+  isActive          Boolean  @default(true)
+  invitedSuppliers  String[] // list of supplier email addresses allowed to join
+  bids              Bid[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Bid {
+  id          String   @id @default(cuid())
+  auction     Auction  @relation(fields: [auctionId], references: [id])
+  auctionId   String
+  supplier    User     @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  amount      Float
+  rank        Int?
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
+  BUYER
+  SUPPLIER
+}
 
