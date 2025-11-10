@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   description: "Experience the Future of Bidding with Avaada",
 };
 
-// ✅ Global dynamic rendering so session context always works
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({
@@ -25,17 +24,16 @@ export default function RootLayout({
       <body
         className={`${inter.className} min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white antialiased`}
       >
-        {/* ✅ Client-side session provider to support NextAuth context */}
         <SessionProviderWrapper>
-          {/* ✅ Navbar (visible on all pages) */}
           <Navbar />
 
-          {/* ✅ Main content area */}
-          <main className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-10">
-            {children}
+          {/* ✅ Full width but visually centered */}
+          <main className="min-h-[80vh] w-full flex justify-center">
+            <div className="max-w-7xl w-full px-8 py-10">
+              {children}
+            </div>
           </main>
 
-          {/* ✅ Glassmorphic footer */}
           <Footer />
         </SessionProviderWrapper>
       </body>
