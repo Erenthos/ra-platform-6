@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 
 export default function BuyerDashboard() {
   const [auctions, setAuctions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [extending, setExtending] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
-  // TEMP buyerId — replace with useSession() user id
+  // TEMP buyerId — replace with authenticated Buyer ID from session
   const buyerId = "buyer-temp-uuid";
 
   useEffect(() => {
@@ -27,11 +29,17 @@ export default function BuyerDashboard() {
 
   const extendAuction = async (auctionId: string) => {
     setExtending(auctionId);
+
+    // connect socket dynamically (avoiding static import issues in SSR)
     const socket = (await import("socket.io-client")).io("/", { path: "/api/socket" });
     socket.emit("extend_auction", { auctionId, extraMinutes: 5 });
+
+    setModalMessage("⏰ Auction extended successfully by 5 minutes!");
+    setModalOpen(true);
+
     setTimeout(() => {
       setExtending(null);
-    }, 1500);
+    }, 1000);
   };
 
   const downloadSummary = async (auction: any) => {
@@ -70,24 +78,27 @@ export default function BuyerDashboard() {
     link.href = URL.createObjectURL(blob);
     link.download = `${auction.title}_Summary.xlsx`;
     link.click();
+
+    setModalMessage("📊 Auction Summary downloaded successfully!");
+    setModalOpen(true);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-white">
-        Loading auctions...
+        Loading your auctions...
       </div>
     );
   }
 
   return (
     <div className="min-h-screen p-10 bg-gradient-to-br from-purple-900/50 to-blue-900/50 backdrop-blur-xl">
-      <h1 className="text-4xl font-bold text-center text-white mb-8">
+      <h1 className="text-4xl font-bold text-center text-white mb-10">
         💼 Buyer Dashboard
       </h1>
 
       {auctions.length === 0 ? (
-        <p className="text-center text-gray-300">
+        <p className="text-center text-gray-300 text-lg">
           No auctions found. Create one to get started!
         </p>
       ) : (
@@ -103,18 +114,14 @@ export default function BuyerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <h2 className="text-2xl font-bold mb-2">{auction.title}</h2>
-                <p className="text-gray-300 mb-2">{auction.description}</p>
+                <p className="text-gray-300 mb-3">{auction.description}</p>
                 <p className="text-sm mb-2">
-                  Ends At:{" "}
-                  <span className="font-semibold">
-                    {new Date(auction.endTime).toLocaleString()}
-                  </span>
+                  ⏱ <strong>Ends At:</strong>{" "}
+                  {new Date(auction.endTime).toLocaleString()}
                 </p>
                 <p className="text-sm mb-4">
-                  Invited Suppliers:{" "}
-                  <span className="font-semibold">
-                    {auction.invitedSuppliers.length}
-                  </span>
+                  🧾 <strong>Suppliers Invited:</strong>{" "}
+                  {auction.invitedSuppliers.length}
                 </p>
 
                 <div className="flex flex-col gap-2">
@@ -150,7 +157,17 @@ export default function BuyerDashboard() {
           })}
         </div>
       )}
+
+      {/* ✅ Modal Integration */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Action Completed"
+        confirmText="Close"
+        onConfirm={() => setModalOpen(false)}
+      >
+        {modalMessage}
+      </Modal>
     </div>
   );
 }
-
