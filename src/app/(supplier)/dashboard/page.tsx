@@ -1,21 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 
 export default function SupplierDashboard() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const supplierEmail = session?.user?.email; // ✅ from authenticated session
+
   const [auctions, setAuctions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // TEMP: replace with authenticated supplier email from session
-  const supplierEmail = "vendor1@example.com";
-
   useEffect(() => {
-    fetchAuctions();
-  }, []);
+    if (supplierEmail) fetchAuctions();
+  }, [supplierEmail]);
 
   const fetchAuctions = async () => {
     try {
@@ -52,7 +53,7 @@ export default function SupplierDashboard() {
 
       {auctions.length === 0 ? (
         <p className="text-center text-gray-300 text-lg">
-          No active auctions available right now.
+          No active auctions available for your account.
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -104,4 +105,3 @@ export default function SupplierDashboard() {
     </div>
   );
 }
-
