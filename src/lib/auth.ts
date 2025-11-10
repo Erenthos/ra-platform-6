@@ -1,40 +1,44 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
+import type { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
-import type { NextAuthOptions } from "next-auth";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "you@example.com" },
+        email: {
+          label: "Email",
+          type: "email",
+          placeholder: "example@domain.com",
+        },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Please enter both email and password");
+        if (!credentials?.email || !credentials.password) {
+          throw new Error("Email and password are required");
         }
 
+        // Find user in Prisma
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
         if (!user) {
-          throw new Error("No account found with this email");
+          throw new Error("No user found with this email");
         }
 
-        const isPasswordValid = await compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          throw new Error("Incorrect password");
+        // Compare hashed password
+        const isValid = await compare(credentials.password, user.password);
+        if (!isValid) {
+          throw new Error("Invalid password");
         }
 
+        // Return minimal safe user object
         return {
           id: user.id,
           name: user.name,
@@ -45,41 +49,33 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // 🔐 Secure session + JWT
   session: {
     strategy: "jwt",
   },
 
-  // 🧠 Encode user details in JWT
   callbacks: {
+    // Store role + id in JWT
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.email = user.email;
         token.role = user.role;
       }
       return token;
     },
 
+    // Make role + id available in session.user
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        session.user.email = token.email as string;
         session.user.role = token.role as string;
       }
       return session;
     },
   },
 
-  // 🔧 Auth Pages
   pages: {
     signIn: "/signin",
-    signOut: "/signin",
   },
 
-  // ⚙️ Optional debugging during development
-  debug: process.env.NODE_ENV === "development",
-
-  // 🧾 Secret (required for Render)
   secret: process.env.NEXTAUTH_SECRET,
 };
