@@ -9,7 +9,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const buyerId = searchParams.get("buyerId");
 
-  if (!buyerId) {
+  if (!buyerId || buyerId === "current") {
+    // You can extend this later to infer buyerId from session
     return NextResponse.json(
       { error: "Missing buyerId parameter" },
       { status: 400 }
@@ -19,7 +20,10 @@ export async function GET(req: Request) {
   try {
     const auctions = await prisma.auction.findMany({
       where: { buyerId },
-      include: { invites: true },
+      include: {
+        invites: true,
+        buyer: true,
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -49,6 +53,7 @@ export async function POST(req: Request) {
       invitedSuppliers,
     } = body;
 
+    // --- Validation ---
     if (!title || !buyerId || !durationMinutes || !minDecrementValue) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -63,13 +68,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // Calculate auction times
+    // --- Calculate auction start and end times ---
     const startTime = new Date();
-    const endTime = new Date(
-      startTime.getTime() + durationMinutes * 60 * 1000
-    );
+    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
-    // ✅ Create auction
+    // --- Prevent duplicate auctions with same title for same buyer ---
+    const existingAuction = await prisma.auction.findFirst({
+      where: { title, buyerId },
+    });
+
+    if (existingAuction) {
+      return NextResponse.json(
+        { error: "An auction with this title already exists for this buyer." },
+        { status: 400 }
+      );
+    }
+
+    // --- Create new auction ---
     const auction = await prisma.auction.create({
       data: {
         title,
@@ -82,24 +97,23 @@ export async function POST(req: Request) {
       },
     });
 
-    // ✅ Add supplier invites
+    // --- Create supplier invites ---
     const invites = await Promise.all(
       invitedSuppliers.map(async (email: string) => {
-        const supplier = await prisma.user.findUnique({
-          where: { email },
-        });
+        const supplier = await prisma.user.findUnique({ where: { email } });
 
-        // If supplier exists, link to user. If not, store invite email for record.
+        // ✅ Use spread to include supplierId only if supplier exists
         return prisma.invite.create({
           data: {
             auctionId: auction.id,
-            supplierId: supplier ? supplier.id : undefined,
             email,
+            ...(supplier && { supplierId: supplier.id }),
           },
         });
       })
     );
 
+    // --- Return success response ---
     return NextResponse.json({
       success: true,
       message: "Auction created successfully",
