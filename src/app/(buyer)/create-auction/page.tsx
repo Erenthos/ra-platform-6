@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { toast } from "sonner"; // optional if you’re using sonner/toastify
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 
 export default function CreateAuctionPage() {
   const [title, setTitle] = useState("");
@@ -15,8 +15,9 @@ export default function CreateAuctionPage() {
   const [emails, setEmails] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  // TEMP: Replace with actual logged-in buyerId
+  // TEMP Buyer ID (replace later with session.user.id)
   const buyerId = "buyer-temp-uuid";
 
   const addEmail = () => {
@@ -32,11 +33,12 @@ export default function CreateAuctionPage() {
 
   const handleSubmit = async () => {
     if (!title || emails.length === 0) {
-      toast?.error?.("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
     setLoading(true);
+
     const res = await fetch("/api/auction", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,19 +56,22 @@ export default function CreateAuctionPage() {
     setLoading(false);
 
     if (res.ok) {
-      toast?.success?.("Auction created successfully!");
+      toast.success("Auction created successfully!");
+      setModalOpen(true);
+
+      // Reset form
       setTitle("");
       setDescription("");
       setDuration(10);
       setMinDecrement(100);
       setEmails([]);
     } else {
-      toast?.error?.(data.error || "Failed to create auction");
+      toast.error(data.error || "Failed to create auction");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900/50 to-blue-900/40 backdrop-blur-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900/50 to-blue-900/50 backdrop-blur-xl">
       <motion.div
         className="w-full max-w-3xl p-8 bg-white/10 rounded-2xl shadow-2xl border border-white/20"
         initial={{ opacity: 0, y: 30 }}
@@ -116,7 +121,10 @@ export default function CreateAuctionPage() {
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
               />
-              <Button onClick={addEmail} className="bg-indigo-500 hover:bg-indigo-600">
+              <Button
+                onClick={addEmail}
+                className="bg-indigo-500 hover:bg-indigo-600"
+              >
                 Add
               </Button>
             </div>
@@ -147,7 +155,21 @@ export default function CreateAuctionPage() {
           </Button>
         </div>
       </motion.div>
+
+      {/* 🎉 Success Modal */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Auction Created!"
+        confirmText="Go to Dashboard"
+        onConfirm={() => {
+          setModalOpen(false);
+          window.location.href = "/buyer/dashboard";
+        }}
+      >
+        ✅ Your auction has been created successfully and is now live.  
+        You can track bids and download summaries from your Buyer Dashboard.
+      </Modal>
     </div>
   );
 }
-
