@@ -2,68 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 🌌 GLOBAL AESTHETIC — Aurora Glassmorphism */
+/* 🌌 Aurora Glassmorphic Base */
 html, body {
   @apply min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white antialiased;
 }
 
-/* 🔮 GLASS CONTAINERS */
+/* 🔮 Glass Container */
 .glass {
-  @apply bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg;
+  @apply bg-white/10 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-xl transition-all duration-300;
 }
 
-/* ✨ TEXT STYLES */
+/* ✨ Headings */
 h1, h2, h3, h4, h5, h6 {
   @apply font-semibold text-white;
 }
 
+/* 🧊 Paragraphs */
 p {
   @apply text-gray-300 leading-relaxed;
 }
 
-/* 🔘 BUTTONS */
+/* 🧭 Buttons */
 .btn-primary {
-  @apply px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-all duration-300 font-semibold text-white shadow-md;
+  @apply px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-all duration-300 font-semibold text-white shadow-md hover:shadow-blue-500/40;
 }
 
 .btn-secondary {
-  @apply px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 transition-all duration-300 font-semibold text-white shadow-md;
+  @apply px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 transition-all duration-300 font-semibold text-white shadow-md hover:shadow-green-500/40;
 }
 
-/* 🧱 CARD COMPONENTS */
+/* 📝 Form Inputs (✅ fixed visibility issue) */
+input, textarea, select {
+  @apply bg-white/5 text-white border border-white/20 rounded-lg px-4 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+input:focus, textarea:focus {
+  @apply bg-white/10;
+}
+
+/* 🏷 Labels */
+label {
+  @apply text-gray-300 text-sm font-medium mb-2;
+}
+
+/* 🧱 Cards */
 .card {
   @apply glass p-6 m-4 w-full max-w-md;
 }
 
-.card-title {
-  @apply text-2xl font-bold mb-3;
-}
-
-.card-subtitle {
-  @apply text-gray-400 text-sm mb-4;
-}
-
-/* 🧭 NAVBAR */
-.navbar {
-  @apply glass flex items-center justify-between px-6 py-4 sticky top-0 z-50;
-}
-
-/* 🦶 FOOTER */
+/* 🦶 Footer */
 .footer {
-  @apply glass text-center text-sm py-4 mt-10;
+  @apply glass text-center text-sm py-6 mt-12 border-t border-white/10;
 }
 
-/* 🌀 INPUTS & FORMS */
-input, textarea, select {
-  @apply bg-white/5 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500;
+/* 💫 Animations (optional) */
+@keyframes aurora-glow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-label {
-  @apply text-gray-300 text-sm mb-2;
+.aurora-bg {
+  background: linear-gradient(270deg, #00C6FF, #0072FF, #00C6FF, #0072FF);
+  background-size: 400% 400%;
+  animation: aurora-glow 10s ease infinite;
+  @apply opacity-20 blur-3xl absolute inset-0 rounded-full;
 }
-
-/* 💡 LINKS */
-a {
-  @apply text-blue-400 hover:text-blue-300 transition-colors duration-200;
-}
-
