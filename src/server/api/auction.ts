@@ -1,27 +1,57 @@
-// src/server/api/auction.ts
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 // 🧾 Validation schema for auction creation
 const auctionSchema = z.object({
-  title: z.string().min(3),
+  title: z.string().min(3, "Title is required"),
   description: z.string().optional(),
-  buyerId: z.string(),
-  durationMinutes: z.number().min(1),
-  minDecrementValue: z.number().positive(),
-  invitedSuppliers: z.array(z.string().email())
+  buyerId: z.string().min(1, "Buyer ID is required"),
+  durationMinutes: z.number().int().positive("Duration must be positive"),
+  minDecrementValue: z.number().positive("Minimum decrement must be positive"),
+  invitedSuppliers: z.array(z.string().email("Invalid supplier email")),
 });
 
-// 🏗️ Create a new auction (Buyer only)
+// 🧱 GET — fetch all auctions for a specific buyer
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const buyerId = searchParams.get("buyerId");
+
+    if (!buyerId) {
+      return NextResponse.json({ error: "Missing buyerId" }, { status: 400 });
+    }
+
+    const auctions = await prisma.auction.findMany({
+      where: { buyerId },
+      include: {
+        invites: true,
+        buyer: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(auctions);
+  } catch (error) {
+    console.error("❌ Error fetching auctions:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch auctions" },
+      { status: 500 }
+    );
+  }
+}
+
+// 🧱 POST — create a new auction and invited suppliers
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const parsed = auctionSchema.safeParse(body);
 
-    if (!parsed.success) {
+    // ✅ Validate input using Zod
+    const result = auctionSchema.safeParse(body);
+    if (!result.success) {
+      const issues = result.error.errors.map((e) => e.message);
       return NextResponse.json(
-        { error: parsed.error.format() },
+        { error: "Validation failed", details: issues },
         { status: 400 }
       );
     }
@@ -32,62 +62,65 @@ export async function POST(req: Request) {
       buyerId,
       durationMinutes,
       minDecrementValue,
-      invitedSuppliers
-    } = parsed.data;
+      invitedSuppliers,
+    } = result.data;
 
-    const now = new Date();
-    const endTime = new Date(now.getTime() + durationMinutes * 60000);
-
-    const auction = await prisma.auction.create({
-      data: {
-        title,
-        description: description || "",
-        buyerId,
-        startTime: now,
-        endTime,
-        minDecrementValue,
-        invitedSuppliers
-      }
+    // Prevent duplicate auction titles for same buyer
+    const existing = await prisma.auction.findFirst({
+      where: { title, buyerId },
     });
 
-    return NextResponse.json({
-      message: "Auction created successfully",
-      auction
-    });
-  } catch (error) {
-    console.error("Auction Create Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
-}
-
-// 📋 Fetch all auctions created by a buyer
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const buyerId = searchParams.get("buyerId");
-
-    if (!buyerId) {
+    if (existing) {
       return NextResponse.json(
-        { error: "buyerId is required" },
+        { error: "An auction with this title already exists" },
         { status: 400 }
       );
     }
 
-    const auctions = await prisma.auction.findMany({
-      where: { buyerId },
-      include: { bids: true }
+    // Calculate start and end times
+    const startTime = new Date();
+    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+
+    // ✅ Create the auction (without invitedSuppliers)
+    const auction = await prisma.auction.create({
+      data: {
+        title,
+        description,
+        buyerId,
+        durationMinutes,
+        startTime,
+        endTime,
+        minDecrementValue,
+      },
     });
 
-    return NextResponse.json(auctions);
+    // ✅ Create supplier invites after auction creation
+    const invites = await Promise.all(
+      invitedSuppliers.map(async (email: string) => {
+        const supplier = await prisma.user.findUnique({ where: { email } });
+
+        return prisma.invite.create({
+          data: {
+            auctionId: auction.id,
+            email,
+            ...(supplier && { supplierId: supplier.id }),
+          },
+        });
+      })
+    );
+
+    // ✅ Return response
+    return NextResponse.json({
+      success: true,
+      message: "Auction created successfully",
+      auction,
+      invites,
+    });
   } catch (error) {
-    console.error("Auction Fetch Error:", error);
+    console.error("❌ Error creating auction:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Server error while creating auction" },
       { status: 500 }
     );
   }
 }
-
