@@ -1,4 +1,6 @@
-// prisma/schema.prisma
+// -------------------------------------------------------
+// Prisma Schema for Reverse Auction Platform (ra-platform-6)
+// -------------------------------------------------------
 
 generator client {
   provider = "prisma-client-js"
@@ -9,46 +11,78 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// -------------------------------------------------------
+//  USER MODEL
+//  Buyers and Suppliers share this table (role field differentiates)
+// -------------------------------------------------------
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  password    String
-  role        Role     @default(SUPPLIER)
-  createdAt   DateTime @default(now())
-  auctions    Auction[] @relation("BuyerAuctions")
-  bids        Bid[]
+  id        String    @id @default(cuid())
+  name      String?
+  email     String    @unique
+  password  String
+  role      String    // "buyer" | "supplier"
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  auctionsCreated Auction[] @relation("BuyerAuctions")
+  bids            Bid[]
+  invites         Invite[]
 }
 
+// -------------------------------------------------------
+//  AUCTION MODEL
+//  Created by Buyers, participated in by Suppliers
+// -------------------------------------------------------
 model Auction {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   title             String
-  description       String
-  buyer             User     @relation("BuyerAuctions", fields: [buyerId], references: [id])
-  buyerId           String
-  startTime         DateTime
+  description       String?
+  startTime         DateTime  @default(now())
   endTime           DateTime
+  durationMinutes   Int
   minDecrementValue Float
-  isActive          Boolean  @default(true)
-  invitedSuppliers  String[] // list of supplier email addresses allowed to join
-  bids              Bid[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  status            String    @default("active") // "active", "closed", "cancelled"
+
+  // Foreign Key
+  buyerId String
+  buyer   User      @relation("BuyerAuctions", fields: [buyerId], references: [id])
+
+  // Relations
+  bids    Bid[]
+  invites Invite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// -------------------------------------------------------
+//  BID MODEL
+//  Each supplier can place multiple bids on one auction
+// -------------------------------------------------------
 model Bid {
   id          String   @id @default(cuid())
-  auction     Auction  @relation(fields: [auctionId], references: [id])
-  auctionId   String
-  supplier    User     @relation(fields: [supplierId], references: [id])
-  supplierId  String
   amount      Float
-  rank        Int?
   createdAt   DateTime @default(now())
+  rank        Int?
+  supplierId  String
+  auctionId   String
+
+  supplier User    @relation(fields: [supplierId], references: [id])
+  auction  Auction @relation(fields: [auctionId], references: [id])
 }
 
-enum Role {
-  BUYER
-  SUPPLIER
-}
+// -------------------------------------------------------
+//  INVITE MODEL
+//  Tracks which suppliers were invited to which auctions
+// -------------------------------------------------------
+model Invite {
+  id          String   @id @default(cuid())
+  supplierId  String
+  auctionId   String
+  email       String
+  invitedAt   DateTime @default(now())
 
+  supplier User    @relation(fields: [supplierId], references: [id])
+  auction  Auction @relation(fields: [auctionId], references: [id])
+}
