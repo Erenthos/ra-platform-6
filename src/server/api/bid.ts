@@ -1,132 +1,147 @@
-// src/server/api/bid.ts
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getIO } from "@/lib/socket";
 import { z } from "zod";
 
-// 🧾 Validation schema for bid submission
+// 🧾 Validation schema for incoming bid data
 const bidSchema = z.object({
-  auctionId: z.string(),
-  supplierId: z.string(),
-  amount: z.number().positive()
+  auctionId: z.string().min(1, "Auction ID is required"),
+  supplierId: z.string().min(1, "Supplier ID is required"),
+  amount: z.number().positive("Bid amount must be positive"),
 });
 
-// 📤 Supplier places a new bid
+// 🧱 POST — Submit a new bid
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const parsed = bidSchema.safeParse(body);
 
-    if (!parsed.success) {
+    // ✅ Validate with Zod
+    const result = bidSchema.safeParse(body);
+    if (!result.success) {
+      const issues = result.error.errors.map((e) => e.message);
       return NextResponse.json(
-        { error: parsed.error.format() },
+        { error: "Validation failed", details: issues },
         { status: 400 }
       );
     }
 
-    const { auctionId, supplierId, amount } = parsed.data;
+    const { auctionId, supplierId, amount } = result.data;
 
+    // ✅ Fetch auction with bids
     const auction = await prisma.auction.findUnique({
       where: { id: auctionId },
-      include: { bids: true }
+      include: { bids: true },
     });
 
     if (!auction) {
-      return NextResponse.json({ error: "Auction not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Auction not found" },
+        { status: 404 }
+      );
     }
 
-    // Check auction validity
+    // ⏰ Check auction validity
     const now = new Date();
-    if (!auction.isActive || now > auction.endTime) {
-      return NextResponse.json({ error: "Auction has ended." }, { status: 400 });
+    if (auction.status !== "active" || now > auction.endTime) {
+      return NextResponse.json(
+        { error: "Auction has ended." },
+        { status: 400 }
+      );
     }
 
-    // Get supplier's last bid (if any)
+    // ✅ Get supplier's latest bid
     const lastBid = await prisma.bid.findFirst({
       where: { auctionId, supplierId },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
-    // Ensure the new bid respects minimum decrement value
-    if (lastBid && amount >= lastBid.amount - auction.minDecrementValue) {
+    if (lastBid && amount >= lastBid.amount) {
+      return NextResponse.json(
+        { error: "New bid must be lower than your previous bid." },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Enforce minimum decrement
+    if (lastBid && lastBid.amount - amount < auction.minDecrementValue) {
       return NextResponse.json(
         {
-          error: `Bid must be at least ₹${auction.minDecrementValue} lower than your previous bid (₹${lastBid.amount}).`
+          error: `Each new bid must decrease by at least ₹${auction.minDecrementValue}.`,
         },
         { status: 400 }
       );
     }
 
-    // Record the new bid
+    // ✅ Save new bid
     const newBid = await prisma.bid.create({
       data: {
         auctionId,
         supplierId,
-        amount
-      }
+        amount,
+      },
     });
 
-    // Update ranking for all bids in this auction
-    const allBids = await prisma.bid.findMany({
-      where: { auctionId },
-      orderBy: { amount: "asc" }
-    });
-
-    for (let i = 0; i < allBids.length; i++) {
-      await prisma.bid.update({
-        where: { id: allBids[i].id },
-        data: { rank: i + 1 }
-      });
-    }
-
-    // (Optional) Notify all connected clients via Socket.IO (pseudo trigger)
-    // io.to(auctionId).emit("bid_update", { auctionId });
-
-    return NextResponse.json({
-      message: "Bid placed successfully.",
-      bid: newBid
-    });
-  } catch (error) {
-    console.error("Bid Placement Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
-}
-
-// 📋 Get all bids for a given auction
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const auctionId = searchParams.get("auctionId");
-    const supplierId = searchParams.get("supplierId");
-
-    if (!auctionId) {
-      return NextResponse.json(
-        { error: "auctionId is required" },
-        { status: 400 }
-      );
-    }
-
-    // Supplier can only view their own rank & bid
-    // Buyer can see all
+    // ✅ Update ranks dynamically
     const bids = await prisma.bid.findMany({
       where: { auctionId },
-      orderBy: { amount: "asc" }
+      orderBy: { amount: "asc" },
+      include: { supplier: true },
     });
 
-    if (supplierId) {
-      const supplierBid = bids.find((b) => b.supplierId === supplierId);
-      return NextResponse.json({
-        supplierBid,
-        totalBidders: bids.length
+    // Assign rank order
+    for (let i = 0; i < bids.length; i++) {
+      await prisma.bid.update({
+        where: { id: bids[i].id },
+        data: { rank: i + 1 },
       });
     }
 
-    return NextResponse.json(bids);
+    // ✅ Broadcast live update through socket
+    const io = getIO();
+    io.to(auctionId).emit("update_bids", bids);
+
+    // ✅ Return success response
+    return NextResponse.json({
+      success: true,
+      message: "Bid placed successfully",
+      newBid,
+      currentRanking: bids.map((b) => ({
+        supplier: b.supplierId,
+        amount: b.amount,
+        rank: b.rank,
+      })),
+    });
   } catch (error) {
-    console.error("Bid Fetch Error:", error);
+    console.error("❌ Error placing bid:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Server error while placing bid" },
       { status: 500 }
     );
   }
 }
 
+// 🧱 GET — Retrieve current auction bids
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const auctionId = searchParams.get("auctionId");
+
+    if (!auctionId) {
+      return NextResponse.json({ error: "Missing auctionId" }, { status: 400 });
+    }
+
+    const bids = await prisma.bid.findMany({
+      where: { auctionId },
+      orderBy: { amount: "asc" },
+      include: { supplier: true },
+    });
+
+    return NextResponse.json(bids);
+  } catch (error) {
+    console.error("❌ Error fetching bids:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch bids" },
+      { status: 500 }
+    );
+  }
+}
