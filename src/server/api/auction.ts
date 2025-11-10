@@ -99,19 +99,17 @@ export async function POST(req: Request) {
       invitedSuppliers.map(async (email: string) => {
         const supplier = await prisma.user.findUnique({ where: { email } });
 
-        // Build invite data safely
-        const inviteData: {
-          auctionId: string;
-          email: string;
-          supplierId?: string;
-        } = {
-          auctionId: auction.id,
-          email,
-        };
-
-        if (supplier && supplier.id) {
-          inviteData.supplierId = supplier.id;
-        }
+        // ✅ Build object conditionally — omit supplierId if not found
+        const inviteData = supplier
+          ? {
+              auctionId: auction.id,
+              email,
+              supplierId: supplier.id,
+            }
+          : {
+              auctionId: auction.id,
+              email,
+            };
 
         return prisma.invite.create({ data: inviteData });
       })
