@@ -1,23 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useParams } from "next/navigation";
 import { io } from "socket.io-client";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 
 const socket = io("/", { path: "/api/socket" });
 
 export default function SupplierAuctionRoom() {
+  const { data: session } = useSession();
   const { auctionId } = useParams();
+  const supplierId = session?.user?.id; // ✅ dynamic supplier ID
+  const supplierEmail = session?.user?.email;
+
   const [amount, setAmount] = useState<number>(0);
   const [rank, setRank] = useState<number | null>(null);
   const [currentBid, setCurrentBid] = useState<number | null>(null);
   const [auctionEnd, setAuctionEnd] = useState<Date | null>(null);
   const [bidding, setBidding] = useState(false);
-  const [error, setError] = useState("");
-  const supplierId = "supplier-temp-uuid"; // replace with actual logged-in supplier ID
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
   // 🔌 Join auction room
   useEffect(() => {
@@ -42,12 +48,14 @@ export default function SupplierAuctionRoom() {
       socket.off("update_bids");
       socket.off("auction_extended");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auctionId]);
+  }, [auctionId, supplierId]);
 
   // 🧮 Fetch initial bid info
   const fetchMyBid = async () => {
-    const res = await fetch(`/api/bid?auctionId=${auctionId}&supplierId=${supplierId}`);
+    if (!supplierId) return;
+    const res = await fetch(
+      `/api/bid?auctionId=${auctionId}&supplierId=${supplierId}`
+    );
     const data = await res.json();
     if (data?.supplierBid) {
       setCurrentBid(data.supplierBid.amount);
@@ -57,9 +65,13 @@ export default function SupplierAuctionRoom() {
 
   // 🏷️ Place new bid
   const placeBid = async () => {
-    setError("");
-    setBidding(true);
+    if (!supplierId || !auctionId) {
+      setModalMessage("❌ Session expired. Please sign in again.");
+      setModalOpen(true);
+      return;
+    }
 
+    setBidding(true);
     const res = await fetch("/api/bid", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -74,13 +86,16 @@ export default function SupplierAuctionRoom() {
     setBidding(false);
 
     if (!res.ok) {
-      setError(data.error || "Bid failed");
+      setModalMessage(data.error || "Bid failed. Please try again.");
+      setModalOpen(true);
       return;
     }
 
     socket.emit("new_bid", { auctionId });
     await fetchMyBid();
     setAmount(0);
+    setModalMessage("✅ Bid placed successfully!");
+    setModalOpen(true);
   };
 
   return (
@@ -104,6 +119,9 @@ export default function SupplierAuctionRoom() {
               {auctionEnd.toLocaleString()}
             </p>
           )}
+          <p className="mt-2 text-sm text-gray-400">
+            Signed in as: <span className="text-indigo-300">{supplierEmail}</span>
+          </p>
         </div>
 
         <div className="bg-white/10 rounded-xl p-4 mb-6">
@@ -126,8 +144,6 @@ export default function SupplierAuctionRoom() {
             className="w-2/3 text-center"
           />
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
           <Button
             onClick={placeBid}
             disabled={bidding || !amount}
@@ -138,11 +154,20 @@ export default function SupplierAuctionRoom() {
         </div>
 
         <p className="text-gray-300 text-sm mt-6">
-          * Remember: Each bid must be at least the minimum decrement lower
-          than your previous one.
+          * Each new bid must be at least the minimum decrement lower than your previous one.
         </p>
       </motion.div>
+
+      {/* ✅ Feedback Modal */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Bid Update"
+        confirmText="Close"
+        onConfirm={() => setModalOpen(false)}
+      >
+        {modalMessage}
+      </Modal>
     </div>
   );
 }
-
